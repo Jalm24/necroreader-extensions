@@ -1,0 +1,17 @@
+{
+  "tab.home": "Inicio",
+  "tab.library": "Mis mangas",
+  "tab.discover": "Descubre",
+  "tab.settings": "Yo",
+  "tabs.following": "Siguiente",
+  "tabs.history": "Historial",
+  "search.library": "Buscar en mi biblioteca",
+  "search.discover": "Buscar manga...",
+  "home.section.populares": "Populares",
+  "home.section.recientes": "Recientes",
+  "details.read": "Leer",
+  "details.follow": "Seguir (+)",
+  "details.followed": "Seguido (-)",
+  "common.loading": "Cargando...",
+  "ext.title": "Extensiones"
+}

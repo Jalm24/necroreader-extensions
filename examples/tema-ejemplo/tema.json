@@ -1,0 +1,52 @@
+{
+  "accent": "#008000",
+  "title": "#1E1E1E",
+  "content": "#939393",
+  "read": "#888888",
+  "white": "#FFFFFF",
+  "black": "#000000",
+  "soft": "#FFFFFF",
+  "bar_bg": "#212121",
+  "tabs_bg": "#EFEFEF",
+  "top_bar": "#F5F5F5",
+  "card": "#FFFFFF",
+  "filled": "#EFEFEF",
+  "border": "#CCCCCC",
+  "hairline": "#E0E0E0",
+  "divider": "#DDDDDD",
+  "placeholder": "#E9E9E9",
+  "link": "#2D6CB5",
+  "dim": "#4A4A4A",
+  "spacing": {
+    "details.block_gap": 16,
+    "details.button_gap": 8,
+    "details.desc_gap": 8,
+    "details.rec_gap": 16,
+    "search.button_gap": 8
+  },
+  "layout": {
+    "startup": "home",
+    "tabs": [
+      { "panel": "library" },
+      { "panel": "home" },
+      { "panel": "discover" },
+      { "panel": "yo" }
+    ],
+    "home": {
+      "order": [
+        { "id": "home.recientes", "layout": "grid_3" },
+        { "id": "home.populares", "layout": "carousel_big" }
+      ]
+    },
+    "library": { "order": ["tabs", "list", "search"], "list": "list" },
+    "discover": { "order": ["search", "tabs", "list"] },
+    "details": {
+      "flow": ["buttons", "tabs"],
+      "tabs": {
+        "detail": ["header", "description", "recs"],
+        "chapter": [],
+        "comment": []
+      }
+    }
+  }
+}
