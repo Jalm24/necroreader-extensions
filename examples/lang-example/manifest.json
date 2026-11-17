@@ -1,0 +1,8 @@
+{
+  "type": "lang",
+  "id": "example-lang",
+  "name": "Example Spanish pack",
+  "version": "1.0.0",
+  "author": "NecroReader",
+  "languages": ["es"]
+}

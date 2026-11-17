@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Shared base of the extension packers: manifest.bin writer, container
-builder and container validator. The per-type entry points
-(build_langpack.py, and later per extension type) come here.
+"""Shared base of necroext.py: manifest.bin writer, container builder and
+container validator. One CLI (necroext.py) drives every extension type.
 
 The manifest layout is the one NecroReader's installer reads today:
     "NECR" | u32 version (1,0,0) | u32 payloadSize | u32 crc32(payload)
     payload: u8len type | u8len id | u16len name | u16len version |
              u16len author | u8 langCount | (u8len code)*
 """
-import argparse
 import re
 import struct
 import sys
@@ -54,31 +52,34 @@ def fail(message):
 
 def build_container(out_path, entries):
     """Writes the .necroext (a plain zip; miniz opens it as-is)."""
-    # Longest name first keeps no property of the installer, but a stable
-    # order makes the tool's output reproducible.
+    # Sorted names and a fixed timestamp make the bytes reproducible:
+    # unpack -> build gives the same file back.
     entries = sorted(entries, key=lambda entry: entry[0])
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for name, data in entries:
-            zf.writestr(name, data)
+            info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o600 << 16
+            zf.writestr(info, data)
 
 
 def parse_manifest(manifest_bytes):
     """Reads a manifest.bin the same way as the C++ parser; raises on any
     shortcut the installer would refuse."""
     if manifest_bytes[:4] != MAGIC:
-        fail("manifest.bin: magic invalido")
+        fail("manifest.bin: bad magic")
     version = manifest_bytes[4:8]
     if version != bytes([1, 0, 0, 0]):
-        fail("manifest.bin: version no soportada")
+        fail("manifest.bin: unsupported version")
     size = struct.unpack("<I", manifest_bytes[8:12])[0]
     crc = struct.unpack("<I", manifest_bytes[12:16])[0]
     payload = manifest_bytes[16:]
     if len(payload) != size or zlib.crc32(payload) & 0xFFFFFFFF != crc:
-        fail("manifest.bin: tamano o CRC invalido")
+        fail("manifest.bin: size or CRC mismatch")
 
     def read8(index):
         if index + 1 > len(payload):
-            fail("manifest.bin: truncado")
+            fail("manifest.bin: truncated")
         length = payload[index]
         end = index + 1 + length
         text = payload[index + 1:end].decode("utf-8")
@@ -86,7 +87,7 @@ def parse_manifest(manifest_bytes):
 
     def read16(index):
         if index + 2 > len(payload):
-            fail("manifest.bin: truncado")
+            fail("manifest.bin: truncated")
         length = struct.unpack("<H", payload[index:index + 2])[0]
         end = index + 2 + length
         text = payload[index + 2:end].decode("utf-8")
@@ -98,18 +99,18 @@ def parse_manifest(manifest_bytes):
     version, index = read16(index)
     author, index = read16(index)
     if not valid_id(ext_id):
-        fail("id de extension invalido: %r" % ext_id)
+        fail("invalid extension id: %r" % ext_id)
     if index >= len(payload):
-        fail("manifest.bin: truncado en los idiomas")
+        fail("manifest.bin: truncated at the languages")
     count = payload[index]
     index += 1
     codes = []
     for _ in range(count):
         code, index = read8(index)
         if index > len(payload):
-            fail("manifest.bin: truncado en un codigo")
+            fail("manifest.bin: truncated inside a code")
         if not valid_id(code):
-            fail("codigo de idioma invalido: %r" % code)
+            fail("invalid language code: %r" % code)
         codes.append(code)
     return {
         "type": ext_type,
@@ -128,34 +129,5 @@ def read_container(out_path):
             names = zf.namelist()
             raw = zf.read("manifest.bin")
     except (OSError, KeyError) as error:
-        fail("no se pudo releer el contenedor: %s" % error)
+        fail("could not re-read the container: %s" % error)
     return parse_manifest(raw), names
-
-
-def common_args():
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--name", required=True)
-    parser.add_argument("--author", default="NecroReader")
-    parser.add_argument("--version", default="1.0.0")
-    parser.add_argument("--id", default=None,
-                        help="folder id; defaults to the name lowercased")
-    parser.add_argument("--icon", default=None,
-                        help="optional assets/icon.png")
-    return parser
-
-
-def build_entries(ext_type, ext_id, name, version, author, languages,
-                  payload_entries, icon_path):
-    if not valid_id(ext_id):
-        fail("id de extension invalido: %r" % ext_id)
-    for code in languages:
-        if not valid_id(code):
-            fail("codigo de idioma invalido: %r" % code)
-    entries = [("manifest.bin",
-                manifest_bin(ext_type, ext_id, name, version, author,
-                             languages))]
-    entries += payload_entries
-    if icon_path:
-        with open(icon_path, "rb") as icon:
-            entries.append(("assets/icon.png", icon.read()))
-    return entries

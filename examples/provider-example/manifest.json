@@ -1,0 +1,7 @@
+{
+  "type": "provider",
+  "id": "example-provider",
+  "name": "Example provider",
+  "version": "1.0.0",
+  "author": "NecroReader"
+}

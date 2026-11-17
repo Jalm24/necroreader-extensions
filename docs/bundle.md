@@ -1,27 +1,37 @@
-# Bundle: varios packs en un archivo
+# Bundle: several packs in one file
 
-Un `bundle` (`type: "bundle"`) es un sobre de **distribución**: un zip
-(`.necroext`) que lleva otros `.necroext` dentro. El instalador abre el
-sobre e instala cada pack interior como **extensión independiente** (con
-su propio manifest, id y tipo); el bundle en sí nunca se guarda.
+A `bundle` (`type: "bundle"`) is a **distribution** envelope: a zip
+(`.necroext`) carrying other `.necroext` files. The installer opens the
+envelope and installs each inner pack as an **independent extension** (with
+its own manifest, id and type); the bundle itself is never stored.
 
-```sh
-tools/build_bundle.py --name "Mi pack" --id mipack \
-    tema.necroext lang.necroext -o mipack.necroext
+## Folder layout
+
+```
+my-bundle/
+  manifest.json      {"type": "bundle", "id": "my-bundle", ...}
+  theme.necroext
+  lang.necroext
 ```
 
-Usos típicos:
+```sh
+python3 tools/necroext.py build my-bundle -o dist/
+```
 
-- Entregar **tema + idioma** juntos (van de la mano: la estética y las
-  palabras).
-- Repartir una familia de temas.
+Every `*.necroext` in the folder is embedded. A bundle never carries
+`assets/` (it never installs, so there is no manager row to give an icon)
+and it is not checked for one.
 
-Reglas:
+Typical uses:
 
-- Los packs interiores conservan su manifest: cada uno instala y se
-  actualiza por su propio id.
-- El bundle lleva su propio `manifest.bin` (type `bundle`), pero el
-  instalador solo lo usa para mostrar el sobre; el staging es de los
-  interiores.
-- Si un interior falla la validación, se instala el resto y el error
-  nombra al fallado.
+- Shipping **theme + language** together (they go hand in hand: the looks and
+  the words).
+- Handing out a family of themes.
+
+Rules:
+
+- Inner packs keep their manifest: each installs and updates by its own id.
+- The bundle has its own `manifest.bin` (type `bundle`), but the installer
+  only uses it to show the envelope; staging is the inner packs' business.
+- Nested bundles are refused. If one inner pack fails validation, the rest
+  are installed and the error names the failing one.

@@ -34,8 +34,8 @@
     ],
     "home": {
       "order": [
-        { "id": "home.recientes", "layout": "grid_3" },
-        { "id": "home.populares", "layout": "carousel_big" }
+        { "id": "home.recent", "layout": "grid_3" },
+        { "id": "home.popular", "layout": "carousel_big" }
       ]
     },
     "library": { "order": ["tabs", "list", "search"], "list": "list" },

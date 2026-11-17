@@ -1,57 +1,77 @@
-# Theme: paleta, espaciados, composición e iconos
+# Theme: palette, spacing, composition and icons
 
-`theme.bin` es un JSON (u32 de largo + JSON compacto) con tres partes, todas
-opcionales salvo alguna paleta:
+`theme.bin` is a JSON (u32 length + compact JSON) with three parts, all
+optional except for some palette:
 
 ```json
 {
   "accent": "#008000", "...18 tokens...": "...",
   "spacing": { "details.block_gap": 16 },
-  "layout":  { "startup": "home", "tabs": [...], "home": {...},
-               "library": {...}, "discover": {...}, "details": {...} }
+  "layout":  { "startup": "home", "tabs": ["..."], "home": { "..." : "..." },
+               "library": { "..." : "..." }, "discover": { "..." : "..." },
+               "details": { "..." : "..." } }
 }
 ```
 
-Todo lo que el documento omite **baja al look builtin**: un tema puede ser
-solo paleta. El builtin claro es el "Por defecto"; el oscuro se llama
-**Default-Dark**; ambos viven en la app.
+Anything the document omits **falls back to the builtin look**: a theme can
+be palette only. The builtin light theme is "Default"; the dark one is
+**Default-Dark**; both ship with the app.
 
-## Paleta (los 18 tokens)
+## Folder layout
 
-| token         | uso                                   |
-|---------------|---------------------------------------|
-| `accent`      | botones primarios, títulos de sección, estrellas llenas |
-| `title`       | texto principal                       |
-| `content`     | texto secundario                      |
-| `read`        | filas ya leídas                       |
-| `white`       | **el fondo del app**                  |
-| `black`       | negro puro                            |
-| `soft`        | texto sobre el acento / perillas      |
-| `bar_bg`      | barra de pestañas inferior            |
-| `tabs_bg`     | fondo de la franja de pestañas        |
-| `top_bar`     | barras de lector y detalles           |
-| `card`        | caja de búsqueda, botón seguir        |
-| `filled`      | botones sólidos secundarios           |
-| `border`      | bordes de botones/contornos           |
-| `hairline`    | líneas de separación finas            |
-| `divider`     | separadores                           |
-| `placeholder` | portada fantasma antes de cargar      |
-| `link`        | enlaces en comentarios                |
-| `dim`         | switches apagados                     |
+```
+my-theme/
+  manifest.json      {"type": "theme", "id": "my-theme", ...}
+  theme.json
+  icons/<sprite>.png optional overrides (names in tools.md)
+  assets/            optional; icon.png is the manager row icon
+```
 
-Formato `#RRGGBB` o `#AARRGGBB`. En un tema oscuro, `white` **es el fondo**
-(negro) — el claro neutro de encima vive en `soft`.
+```sh
+python3 tools/necroext.py build my-theme -o dist/
+```
 
-## `spacing` (dp, enteros)
+`icons/` and `assets/` are different contracts: `icons/<sprite>.png` is read
+by the app for its icon set and the file name **is** the interface;
+`assets/**` is copied verbatim for the extension itself (only `icon.png`
+means anything to the app).
+
+## Palette (the 18 tokens)
+
+| token | use |
+|-------|-----|
+| `accent` | primary buttons, section titles, filled stars |
+| `title` | main text |
+| `content` | secondary text |
+| `read` | rows already read |
+| `white` | **the app background** |
+| `black` | pure black |
+| `soft` | text over the accent / switches |
+| `bar_bg` | bottom tab bar |
+| `tabs_bg` | the tab strip background |
+| `top_bar` | reader and details bars |
+| `card` | search box, follow button |
+| `filled` | solid secondary buttons |
+| `border` | button borders and outlines |
+| `hairline` | thin separator lines |
+| `divider` | separators |
+| `placeholder` | ghost cover before loading |
+| `link` | links inside comments |
+| `dim` | switches off |
+
+Format `#RRGGBB` or `#AARRGGBB`. In a dark theme, `white` **is the
+background** (black) — the neutral light on top lives in `soft`.
+
+## `spacing` (integer dp)
 
 `details.block_gap`, `details.button_gap`, `details.desc_gap`,
-`details.rec_gap`, `search.button_gap`. Los valores locos o desconocidos
-bajan al builtin; las medidas de las piezas **no** son del tema, solo los
-huecos entre ellas.
+`details.rec_gap`, `search.button_gap`. Crazy or unknown values fall back to
+the builtin ones; the measurements of the pieces are **not** the theme's,
+only the gaps between them are.
 
 ## `layout`
 
-### El tablero de pestañas (2–5 slots)
+### The tab board (2–5 slots)
 
 ```json
 "startup": "home",
@@ -59,14 +79,18 @@ huecos entre ellas.
           {"panel": "discover"}, {"panel": "yo"} ]
 ```
 
-- `panel`: `home` | `library` | `discover` | `yo`. **Ninguno es
-  obligatorio** (puedes armar el tablero que quieras); si el tema olvida
-  `yo`, entra solo al final (el manejador de extensiones tiene que quedar
-  alcanzable).
-- `label`: opcional, la clave L10n del texto (si falta, usa la del panel).
-- `startup`: panel inicial; sin él abre el **primer slot**.
+- `panel`: `home` | `library` | `discover` | `yo` | `extensions`. Duplicates
+  are dropped. **None is required** (build any board you want); if the theme
+  forgets `yo`, it rides along at the end, because the extensions manager
+  must stay reachable.
+- `label`: optional L10n key for the text (without it, the panel's own key
+  is used).
+- `startup`: the opening panel; without it the **first slot** opens.
 
-### El Home por slots
+The `yo` panel is the **You** tab (`tab.settings` in the language pack); the
+extensions manager is reached from there.
+
+### The Home by slots
 
 ```json
 "home": { "order": [
@@ -75,30 +99,30 @@ huecos entre ellas.
 ] }
 ```
 
-- Cada entrada = **contenido + carrusel propio**; las repeticiones son
-  válidas (la misma sección dos veces con formas distintas).
-- `id`: la variable de la sección del provider (`home.<id>`). Id
-  desconocido: la entrada cae, el resto vive.
-- `layout`: `carousel_big` | `featured` | `grid_3` | `grid_2` (atajos:
-  `carousel`, `grid`, `grid2`, `grid3`). Sin `layout` manda el que el
-  provider declaró. **`featured` tiene loop activo por defecto**; solo
-  `"loop": false` explícito lo apaga. El loop es palabra del tema: el
-  provider no decide nunca.
+- Each entry = **content + its own carousel**; repeats are valid (the same
+  section twice, in different shapes).
+- `id`: the provider section variable (`home.<id>`). Unknown id: that entry
+  drops, the rest live.
+- `layout`: `carousel_big` | `featured` | `grid_3` | `grid_2` (shortcuts:
+  `carousel`, `grid`, `grid2`, `grid3`). Without `layout`, the provider's
+  declared one wins. **`featured` loops by default**; only an explicit
+  `"loop": false` turns it off. Loop is the theme's word: the provider never
+  decides it.
 
-### Las pantallas de lista
+### The list screens
 
 ```json
 "library":  { "order": ["search", "tabs", "list"], "list": "list" },
 "discover": { "order": ["search", "tabs", "list"] }
 ```
 
-- `order`: la pila de componentes, en el orden que quieras (`search`,
-  `tabs`, `list` — la lista siempre última). El builtin de Mis mangas hoy
-  es `["tabs", "list", "search"]` (la búsqueda vive abajo).
-- `list` (solo library): `"list"` (el diseño propio) o `"catalog"`
-  (reutiliza la fila de Descubre).
+- `order`: the component stack, in any order (`search`, `tabs`, `list` —
+  the content list is always last). The builtin "My manga" screen is
+  `["tabs", "list", "search"]` (search at the bottom).
+- `list` (library only): `"list"` (its own design) or `"catalog"` (reuses
+  the Discover row).
 
-### Detalles
+### Details
 
 ```json
 "details": {
@@ -108,33 +132,25 @@ huecos entre ellas.
 }
 ```
 
-- `flow`: los bloques fijos, en orden. Tokens: `header`, `buttons`,
-  `tabs` (la franja; una sola).
-- `tabs.<page>`: los bloques libres de cada página, en orden. Tokens:
-  `header`, `buttons`, `description`, `recs`. Cada bloque libre se coloca
-  **exactamente una vez** entre el flow y las páginas; cualquier esquema
-  inválido baja el tema entero al builtin.
+- `flow`: the fixed blocks, in order. Tokens: `header`, `buttons`, `tabs`
+  (the strip; one only).
+- `tabs.<page>`: the free blocks of each tab, in order. Tokens: `header`,
+  `buttons`, `description`, `recs`. Each free block sits **exactly once**
+  across the flow and the tabs; any invalid scheme drops the whole theme to
+  the builtin look.
 
-## Iconos (`icons/<nombre>.png`)
+## Icons (`icons/<name>.png`)
 
-Un PNG por icono, nombrado como el sprite (ver la tabla completa en
-`docs/herramientas.md`). Cualquier tamaño funciona: el app escala al
-pedido de cada sitio. El **tint** se aplica igual que al arte builtin:
+One PNG per icon, named as the sprite (full table in
+[`tools.md`](tools.md)). Any size works: the app scales to each site's
+request. **Tint** is applied just like to the builtin art:
 
-- tint ≠ 0: reemplaza los colores y conserva la **alpha** de la forma.
-  Si el PNG es un disco blanco con glifo, el blanco se descarta primero
-  (la regla "disco") para que el tint se vea como el nativo; un glifo
-  directo toma el tint entero.
-- tint = 0: el PNG pinta sus colores propios.
+- tint ≠ 0: replaces the colors and keeps the shape's **alpha**. If the PNG
+  is a white disc with a glyph, the white is dropped first (the "disc" rule)
+  so the tint looks native; a bare glyph takes the tint whole.
+- tint = 0: the PNG paints its own colors.
 
-Eso te da dos estilos: **arte que hereda el color del tema** (silueta
-gris/alpha, se tiñe con el acento) o **arte de colores fijos** (el PNG
-trae su paleta; los sitios que tiñen reciben tints de 0 por arte
-propio — p. ej. las estrellas).
-
-## Empaquetado
-
-```sh
-tools/build_theme.py --name "Mi tema" theme.json --icons ./icons \
-    -o mitema.necroext
-```
+That gives two styles: **art that inherits the theme color** (grey/alpha
+silhouette, tinted with the accent) or **fixed-color art** (the PNG brings
+its palette; tinting sites receive tint 0 so the art owns its colors — e.g.
+the stars).

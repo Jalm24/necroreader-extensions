@@ -1,18 +1,34 @@
-# Provider: el contrato `behaviors`
+# Provider: the `behaviors` contract
 
-Un provider declara **variables y pasos**, nunca texto de interfaz. El JSON
-de behaviors (`behaviors.bin` = u32 de largo + JSON compacto) tiene cinco
-claves de primer nivel:
+A provider declares **variables and steps**, never interface text. The
+behaviors JSON (`behaviors.bin` = u32 length + compact JSON) has five
+top-level keys:
 
 ```json
 {
-  "config":   { ... },   // bases, headers, default_body, constants
-  "setup":    [ ... ],   // pasos con nombre que corren una vez
-  "actions":  { ... },   // una entrada por acción del núcleo
-  "mappers":  { ... },   // campos de respuesta -> campos de manga/capítulo
-  "follows":  { ... }    // (opcional) el estante del servidor
+  "config":   { "...": "..." },   // bases, headers, default_body, constants
+  "setup":    [ "..." ],          // named steps that run once
+  "actions":  { "...": "..." },   // one entry per core action
+  "mappers":  { "...": "..." },   // response fields -> manga/chapter fields
+  "follows":  { "...": "..." }    // (optional) the server-side shelf
 }
 ```
+
+## Folder layout
+
+```
+my-provider/
+  manifest.json      {"type": "provider", "id": "my-provider", ...}
+  behaviors.json
+  assets/            optional; icon.png is the manager row icon
+```
+
+```sh
+python3 tools/necroext.py build my-provider -o dist/
+```
+
+The packer validates section ids, strips interface text and checks the
+installer's size limits. See [`tools.md`](tools.md).
 
 ## `config`
 
@@ -25,54 +41,54 @@ claves de primer nivel:
 }
 ```
 
-- `bases`: nombres a los que los pasos se refieren con `"base": "api"`.
-- `default_body`: campos que entran en **cada** POST (el paso puede
-  añadir o sobreescribir).
-- `constants`: valores fijos que referencias como `{{constants.appId}}`.
+- `bases`: names that steps refer to with `"base": "api"`.
+- `default_body`: fields sent in **every** POST (a step may add or
+  overwrite them).
+- `constants`: fixed values referenced as `{{constants.appId}}`.
 
 ## `setup`
 
-Lista de bloques con nombre (`"name"`) que se ejecutan **una sola vez** por
-sesión. Una acción los exige con `"requires": ["ensure_config"]`. Cada
-bloque es una acción en miniatura (`requires` + `steps`).
+A list of named blocks (`"name"`) that run **once per session**. An action
+requires them with `"requires": ["ensure_config"]`. Each block is a miniature
+action (`requires` + `steps`).
 
 ## `actions`
 
-Una por acción del núcleo. Cada una lleva `requires` (nombres de setup) y
-`steps` (la secuencia). La respuesta de la acción es lo que el último paso
-de parse deja en el contexto.
+One per core action. Each carries `requires` (setup names) and `steps` (the
+sequence). The action's result is whatever the last parse step leaves in the
+context.
 
-| Acción               | Variables que recibe            | Produce                        |
-|----------------------|---------------------------------|--------------------------------|
-| `get_home`           | `{{articleNum}} {{cmtNum}}`     | secciones del Home             |
-| `get_feed`           | `{{type}}` ("hot"/"latest"/"for_you"), `{{page}}` | lista de mangas |
-| `search`             | `{{keyword}} {{page}}`          | lista de mangas                |
-| `get_manga_details`  | `{{mangaId}}`                   | un manga completo              |
-| `get_chapters`       | `{{mangaId}}`                   | lista de capítulos             |
-| `get_chapter_pages`  | `{{chapterId}}` `{{pageIndex}}` | lista de páginas               |
-| `get_recommendations`| `{{mangaId}} {{num}}`           | lista de mangas                |
-| `get_catalog`        | `{{page}}`                      | lista de mangas                |
+| Action | Variables it receives | Produces |
+|--------|-----------------------|----------|
+| `get_home` | `{{articleNum}} {{cmtNum}}` | the Home sections |
+| `get_feed` | `{{type}}` ("hot"/"latest"/"for_you"), `{{page}}` | manga list |
+| `search` | `{{keyword}} {{page}}` | manga list |
+| `get_manga_details` | `{{mangaId}}` | a full manga |
+| `get_chapters` | `{{mangaId}}` | chapter list |
+| `get_chapter_pages` | `{{chapterId}}` `{{pageIndex}}` | page list |
+| `get_recommendations` | `{{mangaId}} {{num}}` | manga list |
+| `get_catalog` | `{{page}}` | manga list |
 
-## Tipos de paso
+## Step types
 
-| `type`               | Claves                          | Qué hace                          |
-|----------------------|---------------------------------|-----------------------------------|
-| `http_post` / `http_get` | `base`, `path`, `body`, `on_error`, `headers` | el pedido de red; el body acepta objetos o un string JSON; `{{...}}` se renderiza |
-| `parse_list`         | `root`, `using_mapper`, `mapping` | una lista JSON -> filas de manga/capítulo/página |
-| `parse_object`       | `root`, `using_mapper`, `mapping` | un objeto JSON -> un manga       |
-| `parse_home_sections`| `sections`                      | las secciones del Home (abajo)    |
-| `extract_state`      | `mapping`                       | campos de la respuesta -> estado (`{{state.nombre}}`) |
-| `switch`             | `expression`, `cases`, `default`, `store_as` | elige un valor y lo guarda en estado |
-| `account_store`      | `mapping`                       | campos -> la cuenta del estante   |
+| `type` | Keys | What it does |
+|--------|------|--------------|
+| `http_post` / `http_get` | `base`, `path`, `body`, `on_error`, `headers` | the network request; the body accepts objects or a JSON string; `{{...}}` is rendered |
+| `parse_list` | `root`, `using_mapper`, `mapping` | a JSON list → manga/chapter/page rows |
+| `parse_object` | `root`, `using_mapper`, `mapping` | a JSON object → one manga |
+| `parse_home_sections` | `sections` | the Home sections (below) |
+| `extract_state` | `mapping` | response fields → state (`{{state.name}}`) |
+| `switch` | `expression`, `cases`, `default`, `store_as` | picks a value and stores it in state |
+| `account_store` | `mapping` | fields → the shelf account |
 
-- `root` acepta string o lista de rutas de reserva (`["info", "$root"]`).
-- `mapping` por campo acepta string o lista de candidatos
+- `root` accepts a string or a list of fallback paths (`["info", "$root"]`).
+- A per-field `mapping` accepts a string or a list of candidates
   (`"coverUrl": ["cover", "pic_path", "thumb"]`).
-- `on_error: "continue"` deja que la carga siga si el paso falla.
+- `on_error: "continue"` lets the load go on if the step fails.
 
 ## `mappers`
 
-El diccionario de campos. `manga_item` es el estándar:
+The field dictionary. `manga_item` is the standard:
 
 ```json
 "manga_item": {
@@ -87,11 +103,11 @@ El diccionario de campos. `manga_item` es el estándar:
 }
 ```
 
-Campos de manga: `id title coverUrl description author category
-lastChapter rate`. De capítulo: `id number title url date shortLabel
-isNew`. De página: `imageUrl width height index`.
+Manga fields: `id title coverUrl description author category lastChapter
+rate`. Chapter fields: `id number title url date shortLabel isNew`. Page
+fields: `imageUrl width height index`.
 
-## Las secciones del Home (`parse_home_sections`)
+## Home sections (`parse_home_sections`)
 
 ```json
 { "type": "parse_home_sections", "sections": [
@@ -100,71 +116,60 @@ isNew`. De página: `imageUrl width height index`.
 ] }
 ```
 
-- `id`: **variable**, no texto. La interfaz pinta su encabezado con
-  `L10n.t("home.section." + id)`; un provider que manda `title` ve cómo el
-  empaquetador se lo quita.
-- `layout`: el **predeterminado** de la sección (`carousel_big`,
-  `featured`, `grid_3`, `grid_2`). El tema gana: su composición y su
-  `loop` mandan; esto solo es el fallback cuando el tema no pina el slot.
-- `loop`: histórico — hoy lo ignora el lector (el loop es palabra del
-  tema); déjalo fuera.
-- `source`: ruta(s) de la respuesta donde vive la lista (string o lista
-  de reservas).
-- `request` (opcional): si la sección necesita su propio pedido, lleva
-  `base`/`path`/`body`/`method`; si no, comparte la respuesta del paso
-  anterior.
-- `fallback` (opcional): pedido de reserva si `source` no da filas.
+- `id`: a **variable**, not text. The interface paints its header with
+  `L10n.t("home.section." + id)`; a provider that sends `title` sees the
+  packer drop it.
+- `layout`: the section's **default** (`carousel_big`, `featured`, `grid_3`,
+  `grid_2`). The theme wins: its composition and `loop` decide; this is only
+  the fallback when the theme does not pin the slot.
+- `loop`: legacy — the reader ignores it today (loop is the theme's word);
+  leave it out.
+- `source`: response path(s) where the list lives (a string or a list of
+  fallbacks).
+- `request` (optional): when the section needs its own request, it carries
+  `base`/`path`/`body`/`method`; otherwise it shares the previous step's
+  response.
+- `fallback` (optional): a reserve request when `source` yields no rows.
 
-## Variables y expresiones
+## Variables and expressions
 
-- De petición: `{{page}}`, `{{keyword}}`, `{{mangaId}}`, `{{chapterId}}`,
-  `{{pageIndex}}`, `{{num}}`, `{{type}}`, `{{articleNum}}`, `{{cmtNum}}`.
-- De estado: `{{state.nombre}}` (lo que guardaron `extract_state`/`switch`).
-- De config: `{{constants.x}}`; del idioma: `{{lang}}`.
-- De la cuenta: `{{account.campo}}` (lo que guardó `account_store`).
-- Generadores del estante: `{{gen.user}}`, `{{gen.email}}`, `{{gen.pass}}`,
-  `{{gen.random}}` — valores por cuenta, no por sesión.
-- Función: `{{md5(texto)}}` para firmas.
+- From the request: `{{page}}`, `{{keyword}}`, `{{mangaId}}`,
+  `{{chapterId}}`, `{{pageIndex}}`, `{{num}}`, `{{type}}`, `{{articleNum}}`,
+  `{{cmtNum}}`.
+- From state: `{{state.name}}` (whatever `extract_state`/`switch` stored).
+- From config: `{{constants.x}}`; from the language: `{{lang}}`.
+- From the account: `{{account.field}}` (stored by `account_store`).
+- Shelf generators: `{{gen.user}}`, `{{gen.email}}`, `{{gen.pass}}`,
+  `{{gen.random}}` — per account, not per session.
+- Function: `{{md5(text)}}`, for signatures.
 
-## El estante del servidor (`follows`, opcional)
+## The server-side shelf (`follows`, optional)
 
-Sincroniza la biblioteca del lector con una cuenta del servicio, sin
-UI del provider:
+Syncs the reader's library with a service account, with no provider UI:
 
 ```json
 "follows": {
   "account": {
     "register_when_missing": ["user_id", "token"],
-    "register": { "requires": [...], "steps": [ ... http_post de registro ...,
+    "register": { "requires": ["..."], "steps": [ "..." ,
                    { "type": "account_store", "mapping": {"user_id": "info.user_id"} } ] }
   },
-  "add":    { "requires": [...], "steps": [ ... alta del manga ... ] },
-  "remove": { "requires": [...], "steps": [ ... baja del manga ... ] },
-  "sync":   { "requires": [...], "steps": [ ... pedido de la lista ... ],
+  "add":    { "requires": ["..."], "steps": [ "..." ] },
+  "remove": { "requires": ["..."], "steps": [ "..." ] },
+  "sync":   { "requires": ["..."], "steps": [ "..." ],
               "rows": { "root": "list", "id": "book_id",
                         "latest": "info.last_chapter_title", "check_time": "check_time" } }
 }
 ```
 
-- `account.register_when_missing`: los campos que la cuenta necesita; si
-  faltan, corre `account.register` (una sola vez). El empaquetador exige
-  que `register` termine en `account_store`.
-- `add`/`remove`: se corren con `{{mangaId}}` cargado.
-- `sync.rows`: convierte la respuesta en filas del estante (`id`,
-  `latest`, `check_time`). El `check_time` vuelve en el próximo sync.
+- `account.register_when_missing`: the fields the account needs; when they
+  are missing, `account.register` runs once. The packer requires `register`
+  to end in `account_store`.
+- `add`/`remove`: run with `{{mangaId}}` loaded.
+- `sync.rows`: turns the response into shelf rows (`id`, `latest`,
+  `check_time`). `check_time` comes back on the next sync.
 
-La cuenta es **del provider y del idioma**: `{{gen.*}}` genera una
-identidad sombra nueva por (provider, idioma); el registro no verifica
-correo. Si el servidor responde un error 1001, el lector limpia la
-identidad y re-registra.
-
-## Empaquetado
-
-```sh
-tools/build_provider.py --name "Mi fuente" --bases https://api.example.com/v1/ \
-    behaviors.json -o mifuente.necroext
-```
-
-El empaquetador quita los campos de texto de interfaz (`title` de las
-secciones, `action` no-token) y valida los ids. `assets/icon.png`
-(opcional) es la fila del manejador de extensiones.
+The account belongs to **provider and language**: `{{gen.*}}` derives a new
+shadow identity per (provider, language); registration does not verify email.
+If the server answers error 1001, the reader drops the identity and
+registers again.
