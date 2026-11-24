@@ -1,4 +1,4 @@
-# NecroReader — extension API and tools
+# NecroReader — extension API and tools (made with ai)
 
 Documentation and tooling for building [NecroReader](https://jalm24.itch.io/necro-reader)
 extensions: the native (C++/Android) manga reader where **content and looks
